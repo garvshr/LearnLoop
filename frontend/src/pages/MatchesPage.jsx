@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { apiRequest } from "../api/client.js";
 
-export default function MatchesPage({ currentStudent, onEditProfile }) {
+export default function MatchesPage({ currentStudent, onEditProfile, onManageSkills }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -21,6 +21,9 @@ export default function MatchesPage({ currentStudent, onEditProfile }) {
     loadMatches();
   }, []);
 
+  const teachingList = currentStudent.teachingSkills || [];
+  const learningList = currentStudent.learningSkills || [];
+
   return (
     <div className="container">
       {/* Current Student Swap Summary Banner */}
@@ -29,24 +32,46 @@ export default function MatchesPage({ currentStudent, onEditProfile }) {
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 600 }}>
             YOUR CURRENT SKILL SWAP
           </div>
-          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.35rem", flexWrap: "wrap" }}>
-            <span className="badge badge-teach">
-              Teaching: <strong>{currentStudent.teachingSkill || "None selected"}</strong>
-            </span>
-            <span className="badge badge-learn">
-              Want to Learn: <strong>{currentStudent.learningSkill || "None selected"}</strong>
-            </span>
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem", flexWrap: "wrap" }}>
+            {teachingList.length > 0 ? (
+              teachingList.map((sk) => (
+                <span key={sk.id} className="badge badge-teach">
+                  Teach: <strong>{sk.name}</strong> ({sk.proficiency})
+                </span>
+              ))
+            ) : (
+              <span className="badge badge-teach">Teaching: None</span>
+            )}
+            {learningList.length > 0 ? (
+              learningList.map((skName) => (
+                <span key={skName} className="badge badge-learn">
+                  Learn: <strong>{skName}</strong>
+                </span>
+              ))
+            ) : (
+              <span className="badge badge-learn">Want to Learn: None</span>
+            )}
           </div>
         </div>
 
-        <button
-          type="button"
-          className="btn-chip"
-          style={{ padding: "0.5rem 0.9rem", fontSize: "0.9rem" }}
-          onClick={onEditProfile}
-        >
-          ✏️ Edit Profile
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            type="button"
+            className="btn-chip"
+            style={{ padding: "0.5rem 0.9rem", fontSize: "0.9rem" }}
+            onClick={onManageSkills}
+          >
+            Manage Skills
+          </button>
+          <button
+            type="button"
+            className="btn-chip"
+            style={{ padding: "0.5rem 0.9rem", fontSize: "0.9rem" }}
+            onClick={onEditProfile}
+          >
+            Edit Profile
+          </button>
+        </div>
       </div>
 
       <div style={{ marginBottom: "1.25rem" }}>
@@ -66,7 +91,7 @@ export default function MatchesPage({ currentStudent, onEditProfile }) {
             No matches found right now.
           </p>
           <p style={{ color: "#64748b", marginTop: "0.5rem" }}>
-            Try updating your learning skill in Profile Setup to discover more student peers.
+            Try adding more learning skills in <strong>My Skills</strong> to discover more student peers.
           </p>
         </div>
       ) : (
@@ -78,7 +103,7 @@ export default function MatchesPage({ currentStudent, onEditProfile }) {
             >
               {student.isMutual && (
                 <div className="mutual-badge">
-                  ✨ Mutual Match (Perfect Swap!)
+                  Mutual Match (Perfect Swap!)
                 </div>
               )}
 
@@ -90,18 +115,31 @@ export default function MatchesPage({ currentStudent, onEditProfile }) {
               </div>
 
               <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "0.5rem" }}>
-                <div className="skill-row" style={{ marginBottom: "0.35rem" }}>
-                  <span style={{ color: "#0369a1", fontWeight: 600, fontSize: "0.85rem" }}>
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <div style={{ color: "#0369a1", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.25rem" }}>
                     Teaches:
-                  </span>
-                  <span className="badge badge-teach">{student.teachingSkill}</span>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                    {(student.teachingSkills || []).map((sk) => (
+                      <span key={sk.id} className="badge badge-teach">
+                        {sk.name} • {sk.proficiency}
+                        {sk.proof ? " ✓" : ""}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="skill-row">
-                  <span style={{ color: "#b45309", fontWeight: 600, fontSize: "0.85rem" }}>
-                    Learns:
-                  </span>
-                  <span className="badge badge-learn">{student.learningSkill}</span>
+                <div>
+                  <div style={{ color: "#b45309", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.25rem" }}>
+                    Wants to Learn:
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                    {(student.learningSkills || []).map((skName) => (
+                      <span key={skName} className="badge badge-learn">
+                        {skName}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

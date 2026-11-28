@@ -4,7 +4,7 @@ export default function Navbar({ currentStudent, activePage, onNavigate, onLogou
   return (
     <nav className="navbar">
       <div className="nav-brand">
-        LearnLoop <span className="nav-tag">Starter MVP</span>
+        LearnLoop <span className="nav-tag">Skill System</span>
       </div>
 
       {currentStudent && (
@@ -14,6 +14,12 @@ export default function Navbar({ currentStudent, activePage, onNavigate, onLogou
             onClick={() => onNavigate("matches")}
           >
             Matches
+          </button>
+          <button
+            className={`nav-btn ${activePage === "skills" ? "active" : ""}`}
+            onClick={() => onNavigate("skills")}
+          >
+            My Skills
           </button>
           <button
             className={`nav-btn ${activePage === "profile" ? "active" : ""}`}

@@ -2,3 +2,4 @@ node_modules/
 dist/
 .env
 backend/src/data/db.json
+backend/uploads/

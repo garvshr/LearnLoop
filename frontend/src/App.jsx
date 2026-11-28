@@ -3,11 +3,12 @@ import Navbar from "./components/Navbar.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import ProfileSetupPage from "./pages/ProfileSetupPage.jsx";
 import MatchesPage from "./pages/MatchesPage.jsx";
+import MySkillsPage from "./pages/MySkillsPage.jsx";
 import { apiRequest, getToken, setToken } from "./api/client.js";
 
 export default function App() {
   const [currentStudent, setCurrentStudent] = useState(null);
-  const [activePage, setActivePage] = useState("matches"); // 'matches' | 'profile'
+  const [activePage, setActivePage] = useState("matches"); // 'matches' | 'skills' | 'profile'
   const [initializing, setInitializing] = useState(true);
 
   // Restore session on initial load if token exists
@@ -22,8 +23,10 @@ export default function App() {
       try {
         const data = await apiRequest("/auth/me");
         setCurrentStudent(data.student);
-        // If profile is incomplete, direct to profile setup
-        if (!data.student.teachingSkill || !data.student.learningSkill) {
+        if (
+          !data.student.teachingSkills?.length ||
+          !data.student.learningSkills?.length
+        ) {
           setActivePage("profile");
         } else {
           setActivePage("matches");
@@ -40,7 +43,7 @@ export default function App() {
 
   const handleLoginSuccess = (student) => {
     setCurrentStudent(student);
-    if (!student.teachingSkill || !student.learningSkill) {
+    if (!student.teachingSkills?.length || !student.learningSkills?.length) {
       setActivePage("profile");
     } else {
       setActivePage("matches");
@@ -75,7 +78,6 @@ export default function App() {
     );
   }
 
-  // Logged in -> Show App Header and requested page
   return (
     <div>
       <Navbar
@@ -85,15 +87,25 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      {activePage === "profile" ? (
+      {activePage === "profile" && (
         <ProfileSetupPage
           currentStudent={currentStudent}
           onProfileSaved={handleProfileSaved}
         />
-      ) : (
+      )}
+
+      {activePage === "skills" && (
+        <MySkillsPage
+          currentStudent={currentStudent}
+          onStudentUpdated={setCurrentStudent}
+        />
+      )}
+
+      {activePage === "matches" && (
         <MatchesPage
           currentStudent={currentStudent}
           onEditProfile={() => setActivePage("profile")}
+          onManageSkills={() => setActivePage("skills")}
         />
       )}
     </div>

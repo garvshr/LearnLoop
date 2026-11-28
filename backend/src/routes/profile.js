@@ -7,14 +7,33 @@ const router = Router();
 
 // PUT /api/profile
 router.put("/", requireAuth, (req, res) => {
-  const { name = "", branch = "", teachingSkill = "", learningSkill = "" } = req.body || {};
+  const {
+    name = "",
+    branch = "",
+    teachingSkills,
+    learningSkills,
+    teachingSkill = "",
+    learningSkill = "",
+  } = req.body || {};
 
   const trimmedName = name.trim();
   const trimmedBranch = branch.trim();
 
-  if (!trimmedName || !trimmedBranch || !teachingSkill || !learningSkill) {
+  const finalTeaching = Array.isArray(teachingSkills)
+    ? [...new Set(teachingSkills.map((s) => String(s).trim()).filter(Boolean))]
+    : teachingSkill
+    ? [teachingSkill.trim()]
+    : [];
+
+  const finalLearning = Array.isArray(learningSkills)
+    ? [...new Set(learningSkills.map((s) => String(s).trim()).filter(Boolean))]
+    : learningSkill
+    ? [learningSkill.trim()]
+    : [];
+
+  if (!trimmedName || !trimmedBranch || finalTeaching.length === 0 || finalLearning.length === 0) {
     return res.status(400).json({
-      error: "Name, branch, teaching skill, and learning skill are all required",
+      error: "Name, branch, at least one teaching skill, and at least one learning skill are required",
     });
   }
 
@@ -22,21 +41,25 @@ router.put("/", requireAuth, (req, res) => {
     return res.status(400).json({ error: "Invalid branch selected" });
   }
 
-  if (!AVAILABLE_SKILLS.includes(teachingSkill) || !AVAILABLE_SKILLS.includes(learningSkill)) {
-    return res.status(400).json({ error: "Invalid skill selected" });
+  const invalidSkill = [...finalTeaching, ...finalLearning].find(
+    (s) => !AVAILABLE_SKILLS.includes(s)
+  );
+  if (invalidSkill) {
+    return res.status(400).json({ error: `Invalid skill selected: ${invalidSkill}` });
   }
 
-  if (teachingSkill === learningSkill) {
+  const overlap = finalTeaching.find((s) => finalLearning.includes(s));
+  if (overlap) {
     return res.status(400).json({
-      error: "Teaching skill and learning skill must be different",
+      error: `"${overlap}" cannot be in both teaching and learning skills`,
     });
   }
 
   const updated = updateStudentProfile(req.user.id, {
     name: trimmedName,
     branch: trimmedBranch,
-    teachingSkill,
-    learningSkill,
+    teachingSkills: finalTeaching,
+    learningSkills: finalLearning,
   });
 
   if (!updated) {

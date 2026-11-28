@@ -1,13 +1,116 @@
-export const AVAILABLE_SKILLS = [
-  "React",
-  "Python",
-  "Node.js",
-  "UI/UX Design",
-  "Data Structures",
-  "Machine Learning",
-  "Figma",
-  "Video Editing",
+export const SKILL_CATEGORIES = [
+  "Programming & Web",
+  "Data Science & AI",
+  "Mobile & Cloud",
+  "Design & Media",
+  "Marketing & Business",
+  "Music & Arts",
+  "Languages & Communication",
+  "Academics & Other",
 ];
+
+export const PROFICIENCY_LEVELS = ["Beginner", "Intermediate", "Advanced"];
+
+export const SKILL_CATALOG = [
+  // Programming & Web
+  { name: "React", category: "Programming & Web" },
+  { name: "JavaScript", category: "Programming & Web" },
+  { name: "TypeScript", category: "Programming & Web" },
+  { name: "Node.js", category: "Programming & Web" },
+  { name: "Express.js", category: "Programming & Web" },
+  { name: "Next.js", category: "Programming & Web" },
+  { name: "HTML & CSS", category: "Programming & Web" },
+  { name: "Tailwind CSS", category: "Programming & Web" },
+  { name: "Python", category: "Programming & Web" },
+  { name: "Java", category: "Programming & Web" },
+  { name: "C++", category: "Programming & Web" },
+  { name: "C Programming", category: "Programming & Web" },
+  { name: "Data Structures", category: "Programming & Web" },
+  { name: "Algorithms", category: "Programming & Web" },
+  { name: "Git & GitHub", category: "Programming & Web" },
+  { name: "REST APIs", category: "Programming & Web" },
+  { name: "MongoDB", category: "Programming & Web" },
+  { name: "PostgreSQL", category: "Programming & Web" },
+  { name: "Django", category: "Programming & Web" },
+  { name: "Spring Boot", category: "Programming & Web" },
+
+  // Data Science & AI
+  { name: "Machine Learning", category: "Data Science & AI" },
+  { name: "Deep Learning", category: "Data Science & AI" },
+  { name: "Data Analysis", category: "Data Science & AI" },
+  { name: "SQL", category: "Data Science & AI" },
+  { name: "Pandas & NumPy", category: "Data Science & AI" },
+  { name: "Power BI", category: "Data Science & AI" },
+  { name: "Tableau", category: "Data Science & AI" },
+  { name: "Natural Language Processing", category: "Data Science & AI" },
+  { name: "Computer Vision", category: "Data Science & AI" },
+  { name: "Prompt Engineering", category: "Data Science & AI" },
+
+  // Mobile & Cloud
+  { name: "Flutter", category: "Mobile & Cloud" },
+  { name: "React Native", category: "Mobile & Cloud" },
+  { name: "Android (Kotlin)", category: "Mobile & Cloud" },
+  { name: "iOS (Swift)", category: "Mobile & Cloud" },
+  { name: "Firebase", category: "Mobile & Cloud" },
+  { name: "AWS Basics", category: "Mobile & Cloud" },
+  { name: "Docker", category: "Mobile & Cloud" },
+  { name: "Linux & Bash", category: "Mobile & Cloud" },
+  { name: "Cybersecurity Basics", category: "Mobile & Cloud" },
+
+  // Design & Media
+  { name: "UI/UX Design", category: "Design & Media" },
+  { name: "Figma", category: "Design & Media" },
+  { name: "Graphic Design", category: "Design & Media" },
+  { name: "Adobe Photoshop", category: "Design & Media" },
+  { name: "Adobe Illustrator", category: "Design & Media" },
+  { name: "Canva Design", category: "Design & Media" },
+  { name: "Video Editing", category: "Design & Media" },
+  { name: "Premiere Pro", category: "Design & Media" },
+  { name: "Motion Graphics", category: "Design & Media" },
+  { name: "3D Modeling (Blender)", category: "Design & Media" },
+  { name: "Photography", category: "Design & Media" },
+
+  // Marketing & Business
+  { name: "Digital Marketing", category: "Marketing & Business" },
+  { name: "SEO", category: "Marketing & Business" },
+  { name: "Social Media Marketing", category: "Marketing & Business" },
+  { name: "Content Writing", category: "Marketing & Business" },
+  { name: "Copywriting", category: "Marketing & Business" },
+  { name: "Product Management", category: "Marketing & Business" },
+  { name: "Excel & Spreadsheets", category: "Marketing & Business" },
+  { name: "Financial Literacy", category: "Marketing & Business" },
+  { name: "Startup Pitching", category: "Marketing & Business" },
+
+  // Music & Arts
+  { name: "Guitar", category: "Music & Arts" },
+  { name: "Piano / Keyboard", category: "Music & Arts" },
+  { name: "Singing & Vocals", category: "Music & Arts" },
+  { name: "Music Production", category: "Music & Arts" },
+  { name: "Sketching & Drawing", category: "Music & Arts" },
+  { name: "Digital Illustration", category: "Music & Arts" },
+  { name: "Calligraphy", category: "Music & Arts" },
+  { name: "Dance", category: "Music & Arts" },
+
+  // Languages & Communication
+  { name: "Public Speaking", category: "Languages & Communication" },
+  { name: "Spoken English", category: "Languages & Communication" },
+  { name: "Interview Prep", category: "Languages & Communication" },
+  { name: "Resume Building", category: "Languages & Communication" },
+  { name: "Spanish", category: "Languages & Communication" },
+  { name: "French", category: "Languages & Communication" },
+  { name: "German", category: "Languages & Communication" },
+  { name: "Japanese", category: "Languages & Communication" },
+
+  // Academics & Other
+  { name: "Engineering Mathematics", category: "Academics & Other" },
+  { name: "Linear Algebra", category: "Academics & Other" },
+  { name: "Statistics & Probability", category: "Academics & Other" },
+  { name: "Chess Strategy", category: "Academics & Other" },
+  { name: "Fitness & Yoga", category: "Academics & Other" },
+  { name: "Time Management", category: "Academics & Other" },
+];
+
+export const AVAILABLE_SKILLS = SKILL_CATALOG.map((s) => s.name);
 
 export const BRANCHES = [
   "CSE",
@@ -25,8 +128,8 @@ export const SEED_STUDENTS = [
     password: "password123",
     name: "Aarav Sharma",
     branch: "CSE",
-    teachingSkill: "",
-    learningSkill: "",
+    teachingSkills: [],
+    learningSkills: [],
   },
   {
     id: "stu-2",
@@ -34,8 +137,23 @@ export const SEED_STUDENTS = [
     password: "password123",
     name: "Priya Nair",
     branch: "IT",
-    teachingSkill: "Python",
-    learningSkill: "React",
+    teachingSkills: [
+      {
+        id: "sk-priya-1",
+        name: "Python",
+        category: "Programming & Web",
+        proficiency: "Advanced",
+        description: "Hands-on Python basics, scripting, and problem solving for beginners.",
+        teachingExperience: "Mentored 12 juniors in college coding club.",
+        resourceLinks: ["https://docs.python.org/3/tutorial/"],
+        proof: {
+          type: "project_link",
+          url: "https://github.com/example/python-bootcamp",
+          fileName: "Python Bootcamp Repo",
+        },
+      },
+    ],
+    learningSkills: ["React", "UI/UX Design"],
   },
   {
     id: "stu-3",
@@ -43,8 +161,23 @@ export const SEED_STUDENTS = [
     password: "password123",
     name: "Rohan Verma",
     branch: "ECE",
-    teachingSkill: "Python",
-    learningSkill: "UI/UX Design",
+    teachingSkills: [
+      {
+        id: "sk-rohan-1",
+        name: "Python",
+        category: "Programming & Web",
+        proficiency: "Intermediate",
+        description: "Python automation and data handling with real mini-projects.",
+        teachingExperience: "Conducted 3 weekend peer workshops.",
+        resourceLinks: [],
+        proof: {
+          type: "project_link",
+          url: "https://github.com/example/py-automation",
+          fileName: "Automation Scripts",
+        },
+      },
+    ],
+    learningSkills: ["UI/UX Design", "Figma"],
   },
   {
     id: "stu-4",
@@ -52,8 +185,23 @@ export const SEED_STUDENTS = [
     password: "password123",
     name: "Sneha Patel",
     branch: "CSE",
-    teachingSkill: "React",
-    learningSkill: "Machine Learning",
+    teachingSkills: [
+      {
+        id: "sk-sneha-1",
+        name: "React",
+        category: "Programming & Web",
+        proficiency: "Advanced",
+        description: "Modern React hooks, state management, and building clean SPAs.",
+        teachingExperience: "1 year as frontend lead for campus tech fest.",
+        resourceLinks: ["https://react.dev/learn"],
+        proof: {
+          type: "project_link",
+          url: "https://github.com/example/react-starter-kit",
+          fileName: "React Starter Kit",
+        },
+      },
+    ],
+    learningSkills: ["Machine Learning", "Python"],
   },
   {
     id: "stu-5",
@@ -61,8 +209,23 @@ export const SEED_STUDENTS = [
     password: "password123",
     name: "Kabir Mehta",
     branch: "Mechanical",
-    teachingSkill: "UI/UX Design",
-    learningSkill: "Python",
+    teachingSkills: [
+      {
+        id: "sk-kabir-1",
+        name: "UI/UX Design",
+        category: "Design & Media",
+        proficiency: "Advanced",
+        description: "Wireframing, user flows, and clean interface design in Figma.",
+        teachingExperience: "Freelance designer + taught 6 classmates.",
+        resourceLinks: ["https://www.figma.com/resource-library/"],
+        proof: {
+          type: "project_link",
+          url: "https://dribbble.com/example-portfolio",
+          fileName: "Design Portfolio",
+        },
+      },
+    ],
+    learningSkills: ["Python", "Video Editing"],
   },
   {
     id: "stu-6",
@@ -70,8 +233,23 @@ export const SEED_STUDENTS = [
     password: "password123",
     name: "Ananya Iyer",
     branch: "CSE",
-    teachingSkill: "Machine Learning",
-    learningSkill: "React",
+    teachingSkills: [
+      {
+        id: "sk-ananya-1",
+        name: "Machine Learning",
+        category: "Data Science & AI",
+        proficiency: "Intermediate",
+        description: "Supervised learning, scikit-learn pipelines, and model evaluation.",
+        teachingExperience: "TA for Intro to ML study group.",
+        resourceLinks: [],
+        proof: {
+          type: "project_link",
+          url: "https://github.com/example/ml-notebooks",
+          fileName: "ML Notebooks",
+        },
+      },
+    ],
+    learningSkills: ["React", "Node.js"],
   },
   {
     id: "stu-7",
@@ -79,8 +257,23 @@ export const SEED_STUDENTS = [
     password: "password123",
     name: "Dev Kulkarni",
     branch: "IT",
-    teachingSkill: "Node.js",
-    learningSkill: "Data Structures",
+    teachingSkills: [
+      {
+        id: "sk-dev-1",
+        name: "Node.js",
+        category: "Programming & Web",
+        proficiency: "Advanced",
+        description: "REST APIs, Express middleware, and backend architecture.",
+        teachingExperience: "Built 4 hackathon backends and mentored teammates.",
+        resourceLinks: [],
+        proof: {
+          type: "project_link",
+          url: "https://github.com/example/node-api-template",
+          fileName: "Node API Template",
+        },
+      },
+    ],
+    learningSkills: ["Data Structures", "Docker"],
   },
   {
     id: "stu-8",
@@ -88,7 +281,32 @@ export const SEED_STUDENTS = [
     password: "password123",
     name: "Meera Joshi",
     branch: "ECE",
-    teachingSkill: "Data Structures",
-    learningSkill: "Node.js",
+    teachingSkills: [
+      {
+        id: "sk-meera-1",
+        name: "Data Structures",
+        category: "Programming & Web",
+        proficiency: "Advanced",
+        description: "Trees, graphs, dynamic programming, and interview problem patterns.",
+        teachingExperience: "Solved 400+ DSA problems and hosted weekly prep sessions.",
+        resourceLinks: [],
+        proof: {
+          type: "project_link",
+          url: "https://github.com/example/dsa-patterns",
+          fileName: "DSA Patterns Guide",
+        },
+      },
+      {
+        id: "sk-meera-2",
+        name: "Guitar",
+        category: "Music & Arts",
+        proficiency: "Intermediate",
+        description: "Acoustic chords, strumming patterns, and beginner songs.",
+        teachingExperience: "Campus music club member for 2 years.",
+        resourceLinks: [],
+        proof: null,
+      },
+    ],
+    learningSkills: ["Node.js", "Public Speaking"],
   },
 ];

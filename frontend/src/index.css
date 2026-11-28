@@ -340,3 +340,259 @@ body {
   padding: 3rem 1rem;
   color: var(--text-muted);
 }
+
+/* Searchable Skill Picker */
+.skill-picker {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #f8fafc;
+}
+
+.skill-picker-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.skill-picker-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.45rem;
+}
+
+.skill-picker-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.85rem;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.skill-picker-item:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: #eef2ff;
+}
+
+.skill-picker-item.selected {
+  border: 2px solid var(--primary);
+  background: #eef2ff;
+  font-weight: 600;
+}
+
+.skill-picker-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.skill-picker-cat {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.skill-picker-empty {
+  padding: 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* My Skills Page */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.skill-form-box {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .form-row-2,
+  .skill-picker-controls {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: var(--text-main);
+  border: none;
+  padding: 0.65rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: #cbd5e1;
+}
+
+.skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skill-detail-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  background: #ffffff;
+}
+
+.skill-detail-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.skill-detail-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.badge-prof-beginner {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badge-prof-intermediate {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.badge-prof-advanced {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.skill-detail-text {
+  font-size: 0.92rem;
+  color: #334155;
+  margin-bottom: 0.4rem;
+}
+
+.skill-detail-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+.proof-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.active-chip {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+.active-chip:hover {
+  background: var(--primary-hover);
+}
+
+.upload-box {
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.proof-box {
+  margin-top: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.proof-label {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.proof-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.proof-link:hover {
+  text-decoration: underline;
+}
+
+.proof-media-img {
+  display: block;
+  margin-top: 0.5rem;
+  max-width: 260px;
+  max-height: 180px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.proof-media-video {
+  display: block;
+  margin-top: 0.5rem;
+  max-width: 320px;
+  max-height: 200px;
+  border-radius: 6px;
+}
+
+.learning-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.learning-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: #b45309;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+}

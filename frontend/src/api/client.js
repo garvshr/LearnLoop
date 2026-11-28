@@ -37,3 +37,24 @@ export async function apiRequest(endpoint, options = {}) {
 
   return data;
 }
+
+export async function uploadProofFile(file, proofType) {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("proofType", proofType);
+
+  const response = await fetch("/api/skills/upload-proof", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || `Upload failed with status ${response.status}`);
+  }
+
+  return data;
+}
