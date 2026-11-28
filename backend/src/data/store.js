@@ -13,18 +13,32 @@ function findCategoryForSkill(skillName) {
   return match ? match.category : "Academics & Other";
 }
 
+function normalizeSkill(sk) {
+  const proofs = Array.isArray(sk.proofs)
+    ? sk.proofs.filter(Boolean)
+    : sk.proof
+    ? [sk.proof]
+    : [];
+
+  return {
+    ...sk,
+    proofs,
+    proof: proofs[0] || null,
+  };
+}
+
 /**
  * Ensures older student records (from the initial single-skill MVP)
  * seamlessly work with the new teachingSkills[] / learningSkills[] structure.
  */
 function normalizeStudent(student) {
   let teachingSkills = Array.isArray(student.teachingSkills)
-    ? student.teachingSkills
+    ? student.teachingSkills.map(normalizeSkill)
     : [];
 
   if (teachingSkills.length === 0 && student.teachingSkill) {
     teachingSkills = [
-      {
+      normalizeSkill({
         id: `sk-${student.id}-1`,
         name: student.teachingSkill,
         category: findCategoryForSkill(student.teachingSkill),
@@ -32,8 +46,8 @@ function normalizeStudent(student) {
         description: "",
         teachingExperience: "",
         resourceLinks: [],
-        proof: null,
-      },
+        proofs: [],
+      }),
     ];
   }
 
@@ -166,7 +180,13 @@ export function addTeachingSkill(studentId, skillData) {
   const index = students.findIndex((s) => s.id === studentId);
   if (index === -1) return null;
 
-  const newSkill = {
+  const proofs = Array.isArray(skillData.proofs)
+    ? skillData.proofs.filter(Boolean)
+    : skillData.proof
+    ? [skillData.proof]
+    : [];
+
+  const newSkill = normalizeSkill({
     id: `sk-${Date.now()}`,
     name: skillData.name,
     category: skillData.category || findCategoryForSkill(skillData.name),
@@ -176,8 +196,8 @@ export function addTeachingSkill(studentId, skillData) {
     resourceLinks: Array.isArray(skillData.resourceLinks)
       ? skillData.resourceLinks
       : [],
-    proof: skillData.proof || null,
-  };
+    proofs,
+  });
 
   students[index] = normalizeStudent({
     ...students[index],

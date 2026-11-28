@@ -25,6 +25,22 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
+/**
+ * Deletes an uploaded proof file from local storage (`backend/uploads/`).
+ * (Future Cloudinary/S3 integration: replace fs.unlinkSync with cloud delete API.)
+ */
+function deleteStoredProofFile(proofUrl) {
+  if (!proofUrl || typeof proofUrl !== "string" || !proofUrl.startsWith("/uploads/")) {
+    return;
+  }
+  const safeFileName = path.basename(proofUrl.slice("/uploads/".length));
+  if (!safeFileName) return;
+  const filePath = path.join(UPLOADS_DIR, safeFileName);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+}
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
   filename: (_req, file, cb) => {
@@ -80,6 +96,13 @@ router.post(
   }
 );
 
+// DELETE /api/skills/upload-proof — delete an uploaded proof file from storage
+router.delete("/upload-proof", requireAuth, (req, res) => {
+  const { url = "" } = req.body || {};
+  deleteStoredProofFile(url);
+  return res.json({ ok: true });
+});
+
 // POST /api/skills/teaching — add a new teaching skill
 router.post("/teaching", requireAuth, (req, res) => {
   const {
@@ -89,6 +112,7 @@ router.post("/teaching", requireAuth, (req, res) => {
     description = "",
     teachingExperience = "",
     resourceLinks = [],
+    proofs,
     proof = null,
   } = req.body || {};
 
@@ -121,7 +145,7 @@ router.post("/teaching", requireAuth, (req, res) => {
     description: description.trim(),
     teachingExperience: teachingExperience.trim(),
     resourceLinks: cleanLinks,
-    proof,
+    proofs: Array.isArray(proofs) ? proofs : proof ? [proof] : [],
   });
 
   if (!result) {
@@ -144,6 +168,7 @@ router.put("/teaching/:skillId", requireAuth, (req, res) => {
     description,
     teachingExperience,
     resourceLinks,
+    proofs,
     proof,
   } = req.body || {};
 
@@ -164,11 +189,30 @@ router.put("/teaching/:skillId", requireAuth, (req, res) => {
       ? resourceLinks.map((l) => String(l).trim()).filter(Boolean)
       : [];
   }
-  if (proof !== undefined) updates.proof = proof;
+  if (Array.isArray(proofs)) {
+    updates.proofs = proofs.filter(Boolean);
+    updates.proof = updates.proofs[0] || null;
+  } else if (proof !== undefined) {
+    updates.proofs = proof ? [proof] : [];
+    updates.proof = proof;
+  }
+
+  const existingSkill = req.user.teachingSkills.find((sk) => sk.id === skillId);
+  const previousProofs = existingSkill?.proofs || [];
 
   const result = updateTeachingSkill(req.user.id, skillId, updates);
   if (!result) {
     return res.status(404).json({ error: "Teaching skill not found" });
+  }
+
+  // Delete any uploaded proof files that were removed during this update
+  if (Array.isArray(updates.proofs)) {
+    const nextUrls = new Set(updates.proofs.map((p) => p.url));
+    previousProofs.forEach((oldProof) => {
+      if (oldProof?.url && !nextUrls.has(oldProof.url)) {
+        deleteStoredProofFile(oldProof.url);
+      }
+    });
   }
 
   return res.json({
@@ -177,12 +221,26 @@ router.put("/teaching/:skillId", requireAuth, (req, res) => {
   });
 });
 
-// DELETE /api/skills/teaching/:skillId — remove a teaching skill
+// DELETE /api/skills/teaching/:skillId — remove a teaching skill and all linked proof files
 router.delete("/teaching/:skillId", requireAuth, (req, res) => {
+  const existingSkill = req.user.teachingSkills.find(
+    (sk) => sk.id === req.params.skillId
+  );
+
   const updated = removeTeachingSkill(req.user.id, req.params.skillId);
   if (!updated) {
     return res.status(404).json({ error: "Student not found" });
   }
+
+  if (existingSkill) {
+    const linkedProofs = Array.isArray(existingSkill.proofs)
+      ? existingSkill.proofs
+      : existingSkill.proof
+      ? [existingSkill.proof]
+      : [];
+    linkedProofs.forEach((p) => deleteStoredProofFile(p?.url));
+  }
+
   return res.json({ student: sanitizeStudent(updated) });
 });
 

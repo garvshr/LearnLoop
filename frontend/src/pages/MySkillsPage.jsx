@@ -10,8 +10,14 @@ const EMPTY_FORM = {
   teachingExperience: "",
   resourceLinksText: "",
   proofMode: "project_link", // 'project_link' | 'certificate' | 'photo' | 'video'
-  proofUrl: "",
-  proofFileName: "",
+  proofs: [],
+};
+
+const PROOF_LABELS = {
+  project_link: "Project Link",
+  certificate: "Certificate",
+  photo: "Photo",
+  video: "Video",
 };
 
 export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
@@ -27,6 +33,14 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
+  // Staged (not-yet-uploaded) file & project link input
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingProjectUrl, setPendingProjectUrl] = useState("");
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const [switchPrompt, setSwitchPrompt] = useState(null); // { targetMode }
+  const [deleteSkillPrompt, setDeleteSkillPrompt] = useState(null); // skill object
+  const [unsavedUploadUrls, setUnsavedUploadUrls] = useState([]);
+
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -38,7 +52,9 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
         const data = await apiRequest("/skills/catalog");
         setCatalog(data.skills || []);
         setCategories(data.categories || []);
-        setProficiencyLevels(data.proficiencyLevels || ["Beginner", "Intermediate", "Advanced"]);
+        setProficiencyLevels(
+          data.proficiencyLevels || ["Beginner", "Intermediate", "Advanced"]
+        );
       } catch (err) {
         setError(err.message || "Failed to load skill catalog");
       }
@@ -49,9 +65,17 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
   const teachingSkills = currentStudent.teachingSkills || [];
   const learningSkills = currentStudent.learningSkills || [];
 
+  const resetProofInputs = () => {
+    setPendingFile(null);
+    setPendingProjectUrl("");
+    setFileInputKey((k) => k + 1);
+  };
+
   const handleOpenAdd = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    resetProofInputs();
+    setSwitchPrompt(null);
     setError("");
     setSuccess("");
     setShowForm(true);
@@ -59,6 +83,12 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
 
   const handleOpenEdit = (skill) => {
     setEditingId(skill.id);
+    const existingProofs = Array.isArray(skill.proofs)
+      ? skill.proofs
+      : skill.proof
+      ? [skill.proof]
+      : [];
+
     setForm({
       name: skill.name,
       category: skill.category || "Programming & Web",
@@ -66,33 +96,104 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
       description: skill.description || "",
       teachingExperience: skill.teachingExperience || "",
       resourceLinksText: (skill.resourceLinks || []).join("\n"),
-      proofMode: skill.proof?.type || "project_link",
-      proofUrl: skill.proof?.url || "",
-      proofFileName: skill.proof?.fileName || "",
+      proofMode: "project_link",
+      proofs: existingProofs,
     });
+    resetProofInputs();
+    setSwitchPrompt(null);
     setError("");
     setSuccess("");
     setShowForm(true);
   };
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadPendingFile = async () => {
+    if (!pendingFile) return true;
     setUploading(true);
     setError("");
     try {
-      const data = await uploadProofFile(file, form.proofMode);
+      const data = await uploadProofFile(pendingFile, form.proofMode);
+      const uploadedProof = {
+        id: `prf-${Date.now()}`,
+        ...data.proof,
+      };
       setForm((prev) => ({
         ...prev,
-        proofUrl: data.proof.url,
-        proofFileName: data.proof.fileName,
+        proofs: [...prev.proofs, uploadedProof],
       }));
+      setUnsavedUploadUrls((prev) => [...prev, data.proof.url]);
+      setPendingFile(null);
+      setFileInputKey((k) => k + 1);
+      return true;
     } catch (err) {
       setError(err.message || "Failed to upload file");
+      return false;
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleAddProjectLink = () => {
+    const trimmed = pendingProjectUrl.trim();
+    if (!trimmed) return;
+    setForm((prev) => ({
+      ...prev,
+      proofs: [
+        ...prev.proofs,
+        {
+          id: `prf-${Date.now()}`,
+          type: "project_link",
+          url: trimmed,
+          fileName: trimmed,
+        },
+      ],
+    }));
+    setPendingProjectUrl("");
+  };
+
+  const handleRemoveProof = async (indexToRemove) => {
+    const target = form.proofs[indexToRemove];
+    setForm((prev) => ({
+      ...prev,
+      proofs: prev.proofs.filter((_, idx) => idx !== indexToRemove),
+    }));
+
+    // If this file was uploaded in the current unsaved form session, delete from storage immediately
+    if (target?.url && unsavedUploadUrls.includes(target.url)) {
+      setUnsavedUploadUrls((prev) => prev.filter((u) => u !== target.url));
+      apiRequest("/skills/upload-proof", {
+        method: "DELETE",
+        body: JSON.stringify({ url: target.url }),
+      }).catch(() => {});
+    }
+  };
+
+  const handleTabClick = (targetMode) => {
+    if (targetMode === form.proofMode) return;
+    // If a file is chosen but not uploaded yet, ask user to Upload or Cancel
+    if (pendingFile) {
+      setSwitchPrompt({ targetMode });
+      return;
+    }
+    setForm((prev) => ({ ...prev, proofMode: targetMode }));
+  };
+
+  const handlePromptUpload = async () => {
+    const targetMode = switchPrompt?.targetMode;
+    const ok = await uploadPendingFile();
+    if (ok && targetMode) {
+      setForm((prev) => ({ ...prev, proofMode: targetMode }));
+    }
+    setSwitchPrompt(null);
+  };
+
+  const handlePromptCancel = () => {
+    const targetMode = switchPrompt?.targetMode;
+    setPendingFile(null);
+    setFileInputKey((k) => k + 1);
+    if (targetMode) {
+      setForm((prev) => ({ ...prev, proofMode: targetMode }));
+    }
+    setSwitchPrompt(null);
   };
 
   const handleSaveSkill = async (e) => {
@@ -105,20 +206,17 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
       return;
     }
 
+    if (pendingFile) {
+      setError(
+        `You selected "${pendingFile.name}" but haven't clicked Upload yet. Please upload or remove it first.`
+      );
+      return;
+    }
+
     const resourceLinks = form.resourceLinksText
       .split(/\n|,/)
       .map((s) => s.trim())
       .filter(Boolean);
-
-    const proof = form.proofUrl.trim()
-      ? {
-          type: form.proofMode,
-          url: form.proofUrl.trim(),
-          fileName:
-            form.proofFileName ||
-            (form.proofMode === "project_link" ? "Project / Portfolio Link" : "Uploaded Proof"),
-        }
-      : null;
 
     const payload = {
       name: form.name,
@@ -127,7 +225,7 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
       description: form.description,
       teachingExperience: form.teachingExperience,
       resourceLinks,
-      proof,
+      proofs: form.proofs,
     };
 
     setSaving(true);
@@ -145,6 +243,8 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
       onStudentUpdated(data.student);
       setShowForm(false);
       setEditingId(null);
+      setUnsavedUploadUrls([]);
+      resetProofInputs();
       setSuccess(editingId ? "Teaching skill updated!" : "Teaching skill added!");
     } catch (err) {
       setError(err.message || "Failed to save teaching skill");
@@ -153,17 +253,33 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
     }
   };
 
-  const handleDeleteSkill = async (skillId) => {
+  const handleCancelForm = () => {
+    unsavedUploadUrls.forEach((url) => {
+      apiRequest("/skills/upload-proof", {
+        method: "DELETE",
+        body: JSON.stringify({ url }),
+      }).catch(() => {});
+    });
+    setUnsavedUploadUrls([]);
+    setShowForm(false);
+    setEditingId(null);
+    resetProofInputs();
+  };
+
+  const handleConfirmDeleteSkill = async () => {
+    if (!deleteSkillPrompt) return;
     setError("");
     setSuccess("");
     try {
-      const data = await apiRequest(`/skills/teaching/${skillId}`, {
+      const data = await apiRequest(`/skills/teaching/${deleteSkillPrompt.id}`, {
         method: "DELETE",
       });
       onStudentUpdated(data.student);
-      setSuccess("Teaching skill removed.");
+      setSuccess(`Removed "${deleteSkillPrompt.name}" and all linked proofs.`);
     } catch (err) {
       setError(err.message || "Failed to delete skill");
+    } finally {
+      setDeleteSkillPrompt(null);
     }
   };
 
@@ -200,13 +316,13 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
     }
   };
 
-  const renderProofPreview = (proof) => {
+  const renderProofPreview = (proof, idx) => {
     if (!proof || !proof.url) return null;
 
     if (proof.type === "photo") {
       return (
-        <div className="proof-box">
-          <div className="proof-label">Proof (Photo): {proof.fileName}</div>
+        <div key={proof.id || idx} className="proof-box">
+          <div className="proof-label">Photo: {proof.fileName}</div>
           <img src={proof.url} alt={proof.fileName} className="proof-media-img" />
         </div>
       );
@@ -214,19 +330,17 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
 
     if (proof.type === "video") {
       return (
-        <div className="proof-box">
-          <div className="proof-label">Proof (Video): {proof.fileName}</div>
+        <div key={proof.id || idx} className="proof-box">
+          <div className="proof-label">Video: {proof.fileName}</div>
           <video src={proof.url} controls className="proof-media-video" />
         </div>
       );
     }
 
-    const label =
-      proof.type === "certificate" ? "Certificate" : "Project / Portfolio";
-
+    const label = PROOF_LABELS[proof.type] || "Proof";
     return (
-      <div className="proof-box">
-        <span className="proof-label">Proof ({label}): </span>
+      <div key={proof.id || idx} className="proof-box">
+        <span className="proof-label">{label}: </span>
         <a
           href={proof.url}
           target="_blank"
@@ -243,6 +357,69 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
     <div className="container">
       {error && <div className="alert-error">{error}</div>}
       {success && <div className="alert-success">{success}</div>}
+
+      {/* Un-uploaded file confirmation popup */}
+      {switchPrompt && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h3 style={{ marginBottom: "0.5rem" }}>Un-uploaded File Selected</h3>
+            <p style={{ fontSize: "0.92rem", color: "#475569", marginBottom: "1.25rem" }}>
+              You chose <strong>{pendingFile?.name}</strong> under{" "}
+              <strong>{PROOF_LABELS[form.proofMode]}</strong>, but haven't uploaded it yet.
+              Would you like to upload it before switching?
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handlePromptCancel}
+                disabled={uploading}
+              >
+                Cancel (Discard File)
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ width: "auto", padding: "0.6rem 1.2rem" }}
+                onClick={handlePromptUpload}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : "Upload"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete skill confirmation popup */}
+      {deleteSkillPrompt && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h3 style={{ marginBottom: "0.5rem" }}>Delete Teaching Skill?</h3>
+            <p style={{ fontSize: "0.92rem", color: "#475569", marginBottom: "1.25rem" }}>
+              Are you sure you want to delete <strong>{deleteSkillPrompt.name}</strong>?
+              This will also permanently delete all linked proof files from storage.
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setDeleteSkillPrompt(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-signout"
+                style={{ padding: "0.6rem 1.2rem", fontSize: "0.92rem" }}
+                onClick={handleConfirmDeleteSkill}
+              >
+                Delete Skill
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TEACHING SKILLS SECTION */}
       <div className="card">
@@ -368,10 +545,10 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
               />
             </div>
 
-            {/* Proof of Expertise */}
+            {/* Proof of Expertise (supports adding multiple proofs) */}
             <div className="form-group">
               <label className="form-label">
-                Proof of Expertise (Certificate, Project Link, Photo, or Video)
+                Proof of Expertise (Add Project Link, Certificate, Photo, and/or Video)
               </label>
               <div className="proof-tabs">
                 {[
@@ -386,14 +563,7 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
                     className={`btn-chip ${
                       form.proofMode === tab.id ? "active-chip" : ""
                     }`}
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        proofMode: tab.id,
-                        proofUrl: "",
-                        proofFileName: "",
-                      }))
-                    }
+                    onClick={() => handleTabClick(tab.id)}
                   >
                     {tab.label}
                   </button>
@@ -401,43 +571,85 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
               </div>
 
               {form.proofMode === "project_link" ? (
-                <input
-                  type="url"
-                  className="form-input"
-                  value={form.proofUrl}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      proofUrl: e.target.value,
-                      proofFileName: "Project / Portfolio Link",
-                    })
-                  }
-                  placeholder="https://github.com/username/project"
-                />
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <input
+                    type="url"
+                    className="form-input"
+                    value={pendingProjectUrl}
+                    onChange={(e) => setPendingProjectUrl(e.target.value)}
+                    placeholder="https://github.com/username/project"
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    style={{ width: "auto", padding: "0 1.1rem", whiteSpace: "nowrap" }}
+                    onClick={handleAddProjectLink}
+                    disabled={!pendingProjectUrl.trim()}
+                  >
+                    Add Link
+                  </button>
+                </div>
               ) : (
                 <div className="upload-box">
-                  <input
-                    type="file"
-                    accept={
-                      form.proofMode === "certificate"
-                        ? ".pdf,image/*"
-                        : form.proofMode === "photo"
-                        ? "image/*"
-                        : "video/*"
-                    }
-                    onChange={handleFileChange}
-                    disabled={uploading}
-                  />
-                  {uploading && (
-                    <span style={{ fontSize: "0.85rem", color: "#4f46e5" }}>
-                      Uploading file...
-                    </span>
-                  )}
-                  {form.proofUrl && !uploading && (
-                    <div style={{ marginTop: "0.4rem", fontSize: "0.85rem", color: "#15803d" }}>
-                      Uploaded: <strong>{form.proofFileName}</strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <input
+                      key={fileInputKey}
+                      type="file"
+                      accept={
+                        form.proofMode === "certificate"
+                          ? ".pdf,image/*"
+                          : form.proofMode === "photo"
+                          ? "image/*"
+                          : "video/*"
+                      }
+                      onChange={(e) => setPendingFile(e.target.files?.[0] || null)}
+                      disabled={uploading}
+                    />
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ width: "auto", padding: "0.45rem 1rem", fontSize: "0.85rem" }}
+                      onClick={uploadPendingFile}
+                      disabled={!pendingFile || uploading}
+                    >
+                      {uploading ? "Uploading..." : "Upload"}
+                    </button>
+                  </div>
+                  {pendingFile && (
+                    <div style={{ marginTop: "0.45rem", fontSize: "0.82rem", color: "#b45309" }}>
+                      Selected: <strong>{pendingFile.name}</strong> — click <strong>Upload</strong> to attach.
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* List of all proofs attached to this skill */}
+              {form.proofs.length > 0 && (
+                <div className="attached-proofs-list">
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#475569", marginBottom: "0.35rem" }}>
+                    Attached Proofs ({form.proofs.length})
+                  </div>
+                  {form.proofs.map((p, idx) => (
+                    <div key={p.id || idx} className="attached-proof-item">
+                      <span>
+                        <span className="badge badge-teach" style={{ marginRight: "0.45rem" }}>
+                          {PROOF_LABELS[p.type] || p.type}
+                        </span>
+                        <a href={p.url} target="_blank" rel="noreferrer" className="proof-link">
+                          {p.fileName || p.url}
+                        </a>
+                      </span>
+                      <button
+                        type="button"
+                        className="chip-remove"
+                        style={{ color: "#991b1b" }}
+                        onClick={() => handleRemoveProof(idx)}
+                        title="Remove proof"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -454,10 +666,7 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingId(null);
-                }}
+                onClick={handleCancelForm}
               >
                 Cancel
               </button>
@@ -472,67 +681,82 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
           </div>
         ) : (
           <div className="skills-list">
-            {teachingSkills.map((skill) => (
-              <div key={skill.id} className="skill-detail-card">
-                <div className="skill-detail-top">
-                  <div>
-                    <div className="skill-detail-title">
-                      {skill.name}
-                      <span className="badge badge-teach">{skill.category}</span>
-                      <span className={`badge badge-prof-${skill.proficiency.toLowerCase()}`}>
-                        {skill.proficiency}
-                      </span>
+            {teachingSkills.map((skill) => {
+              const allProofs = Array.isArray(skill.proofs)
+                ? skill.proofs
+                : skill.proof
+                ? [skill.proof]
+                : [];
+
+              return (
+                <div key={skill.id} className="skill-detail-card">
+                  <div className="skill-detail-top">
+                    <div>
+                      <div className="skill-detail-title">
+                        {skill.name}
+                        <span className="badge badge-teach">{skill.category}</span>
+                        <span className={`badge badge-prof-${skill.proficiency.toLowerCase()}`}>
+                          {skill.proficiency}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        className="btn-chip"
+                        onClick={() => handleOpenEdit(skill)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-signout"
+                        onClick={() => setDeleteSkillPrompt(skill)}
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <button
-                      type="button"
-                      className="btn-chip"
-                      onClick={() => handleOpenEdit(skill)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-signout"
-                      onClick={() => handleDeleteSkill(skill.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
+
+                  {skill.description && (
+                    <p className="skill-detail-text">{skill.description}</p>
+                  )}
+
+                  {skill.teachingExperience && (
+                    <p className="skill-detail-meta">
+                      <strong>Teaching Experience:</strong> {skill.teachingExperience}
+                    </p>
+                  )}
+
+                  {skill.resourceLinks?.length > 0 && (
+                    <div className="skill-detail-meta">
+                      <strong>Resources:</strong>{" "}
+                      {skill.resourceLinks.map((link, idx) => (
+                        <a
+                          key={idx}
+                          href={link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="proof-link"
+                          style={{ marginRight: "0.75rem" }}
+                        >
+                          {link} ↗
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {allProofs.length > 0 && (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#475569" }}>
+                        Proofs of Expertise ({allProofs.length}):
+                      </div>
+                      {allProofs.map((p, idx) => renderProofPreview(p, idx))}
+                    </div>
+                  )}
                 </div>
-
-                {skill.description && (
-                  <p className="skill-detail-text">{skill.description}</p>
-                )}
-
-                {skill.teachingExperience && (
-                  <p className="skill-detail-meta">
-                    <strong>Teaching Experience:</strong> {skill.teachingExperience}
-                  </p>
-                )}
-
-                {skill.resourceLinks?.length > 0 && (
-                  <div className="skill-detail-meta">
-                    <strong>Resources:</strong>{" "}
-                    {skill.resourceLinks.map((link, idx) => (
-                      <a
-                        key={idx}
-                        href={link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="proof-link"
-                        style={{ marginRight: "0.75rem" }}
-                      >
-                        {link} ↗
-                      </a>
-                    ))}
-                  </div>
-                )}
-
-                {renderProofPreview(skill.proof)}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -120,12 +120,33 @@ export default function MatchesPage({ currentStudent, onEditProfile, onManageSki
                     Teaches:
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
-                    {(student.teachingSkills || []).map((sk) => (
-                      <span key={sk.id} className="badge badge-teach">
-                        {sk.name} • {sk.proficiency}
-                        {sk.proof ? " ✓" : ""}
-                      </span>
-                    ))}
+                    {(student.teachingSkills || []).map((sk) => {
+                      const proofs = Array.isArray(sk.proofs)
+                        ? sk.proofs
+                        : sk.proof
+                        ? [sk.proof]
+                        : [];
+                      const proofNames = [
+                        ...new Set(
+                          proofs.map((p) =>
+                            p.type === "project_link"
+                              ? "Project Link"
+                              : p.type === "certificate"
+                              ? "Certificate"
+                              : p.type === "photo"
+                              ? "Photo"
+                              : "Video"
+                          )
+                        ),
+                      ];
+
+                      return (
+                        <span key={sk.id} className="badge badge-teach">
+                          {sk.name} • {sk.proficiency}
+                          {proofNames.length > 0 ? ` ✓ (${proofNames.join(", ")})` : ""}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
 
