@@ -1,5 +1,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+
 import express from "express";
 import cors from "cors";
 import {
@@ -14,7 +19,6 @@ import profileRoutes from "./routes/profile.js";
 import matchesRoutes from "./routes/matches.js";
 import skillsRoutes from "./routes/skills.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, "../uploads");
 
 const app = express();

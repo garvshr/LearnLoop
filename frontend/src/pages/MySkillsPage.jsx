@@ -39,7 +39,7 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [switchPrompt, setSwitchPrompt] = useState(null); // { targetMode }
   const [deleteSkillPrompt, setDeleteSkillPrompt] = useState(null); // skill object
-  const [unsavedUploadUrls, setUnsavedUploadUrls] = useState([]);
+  const [unsavedUploads, setUnsavedUploads] = useState([]); // [{ url, publicId, resourceType }]
 
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -120,7 +120,14 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
         ...prev,
         proofs: [...prev.proofs, uploadedProof],
       }));
-      setUnsavedUploadUrls((prev) => [...prev, data.proof.url]);
+      setUnsavedUploads((prev) => [
+        ...prev,
+        {
+          url: data.proof.url,
+          publicId: data.proof.publicId,
+          resourceType: data.proof.resourceType,
+        },
+      ]);
       setPendingFile(null);
       setFileInputKey((k) => k + 1);
       return true;
@@ -158,11 +165,12 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
     }));
 
     // If this file was uploaded in the current unsaved form session, delete from storage immediately
-    if (target?.url && unsavedUploadUrls.includes(target.url)) {
-      setUnsavedUploadUrls((prev) => prev.filter((u) => u !== target.url));
+    const unsavedItem = unsavedUploads.find((u) => u.url === target?.url);
+    if (unsavedItem) {
+      setUnsavedUploads((prev) => prev.filter((u) => u.url !== target.url));
       apiRequest("/skills/upload-proof", {
         method: "DELETE",
-        body: JSON.stringify({ url: target.url }),
+        body: JSON.stringify(unsavedItem),
       }).catch(() => {});
     }
   };
@@ -243,7 +251,7 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
       onStudentUpdated(data.student);
       setShowForm(false);
       setEditingId(null);
-      setUnsavedUploadUrls([]);
+      setUnsavedUploads([]);
       resetProofInputs();
       setSuccess(editingId ? "Teaching skill updated!" : "Teaching skill added!");
     } catch (err) {
@@ -254,13 +262,13 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
   };
 
   const handleCancelForm = () => {
-    unsavedUploadUrls.forEach((url) => {
+    unsavedUploads.forEach((item) => {
       apiRequest("/skills/upload-proof", {
         method: "DELETE",
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(item),
       }).catch(() => {});
     });
-    setUnsavedUploadUrls([]);
+    setUnsavedUploads([]);
     setShowForm(false);
     setEditingId(null);
     resetProofInputs();
@@ -597,7 +605,7 @@ export default function MySkillsPage({ currentStudent, onStudentUpdated }) {
                       type="file"
                       accept={
                         form.proofMode === "certificate"
-                          ? ".pdf,image/*"
+                          ? ".pdf,.doc,.docx,image/*"
                           : form.proofMode === "photo"
                           ? "image/*"
                           : "video/*"

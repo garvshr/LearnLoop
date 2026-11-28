@@ -16,41 +16,39 @@ import {
   updateTeachingSkill,
 } from "../data/store.js";
 import { requireAuth } from "../middleware/auth.js";
+import {
+  deleteFromCloudinary,
+  uploadBufferToCloudinary,
+} from "../utils/cloudinary.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, "../../uploads");
 
-// Ensure uploads directory exists on disk
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-
 /**
- * Deletes an uploaded proof file from local storage (`backend/uploads/`).
- * (Future Cloudinary/S3 integration: replace fs.unlinkSync with cloud delete API.)
+ * Deletes a proof from Cloudinary (if publicId exists) or legacy local disk.
  */
-function deleteStoredProofFile(proofUrl) {
-  if (!proofUrl || typeof proofUrl !== "string" || !proofUrl.startsWith("/uploads/")) {
+async function deleteProofFromStorage(proof) {
+  if (!proof) return;
+
+  if (proof.publicId) {
+    await deleteFromCloudinary(proof.publicId, proof.resourceType || "image");
     return;
   }
-  const safeFileName = path.basename(proofUrl.slice("/uploads/".length));
-  if (!safeFileName) return;
-  const filePath = path.join(UPLOADS_DIR, safeFileName);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
+
+  // Fallback for any older local `/uploads/...` files
+  if (typeof proof.url === "string" && proof.url.startsWith("/uploads/")) {
+    const safeFileName = path.basename(proof.url.slice("/uploads/".length));
+    if (!safeFileName) return;
+    const filePath = path.join(UPLOADS_DIR, safeFileName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   }
 }
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
-    cb(null, `${Date.now()}-${safeName}`);
-  },
-});
-
+// Keep uploads in memory and stream directly to Cloudinary
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB max
 });
 
@@ -74,32 +72,46 @@ router.get("/my", requireAuth, (req, res) => {
   });
 });
 
-// POST /api/skills/upload-proof — upload certificate (PDF/image), photo, or video
+// POST /api/skills/upload-proof — upload certificate (PDF/DOCX/image), photo, or video to Cloudinary
 router.post(
   "/upload-proof",
   requireAuth,
   upload.single("file"),
-  (req, res) => {
+  async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const proofType = req.body?.proofType || "certificate";
-    return res.json({
-      proof: {
-        type: proofType,
-        url: `/uploads/${req.file.filename}`,
-        fileName: req.file.originalname,
-        mimeType: req.file.mimetype,
-      },
-    });
+    try {
+      const proofType = req.body?.proofType || "certificate";
+      const uploaded = await uploadBufferToCloudinary(
+        req.file.buffer,
+        req.file.originalname
+      );
+
+      return res.json({
+        proof: {
+          type: proofType,
+          url: uploaded.url,
+          publicId: uploaded.publicId,
+          resourceType: uploaded.resourceType,
+          fileName: req.file.originalname,
+          mimeType: req.file.mimetype,
+        },
+      });
+    } catch (err) {
+      console.error("Cloudinary upload failed:", err);
+      return res.status(500).json({
+        error: "Cloud upload failed. Please verify CLOUDINARY_URL in backend/.env",
+      });
+    }
   }
 );
 
-// DELETE /api/skills/upload-proof — delete an uploaded proof file from storage
-router.delete("/upload-proof", requireAuth, (req, res) => {
-  const { url = "" } = req.body || {};
-  deleteStoredProofFile(url);
+// DELETE /api/skills/upload-proof — delete an uploaded proof file from Cloudinary
+router.delete("/upload-proof", requireAuth, async (req, res) => {
+  const { url = "", publicId = "", resourceType = "image" } = req.body || {};
+  await deleteProofFromStorage({ url, publicId, resourceType });
   return res.json({ ok: true });
 });
 
@@ -159,7 +171,7 @@ router.post("/teaching", requireAuth, (req, res) => {
 });
 
 // PUT /api/skills/teaching/:skillId — update an existing teaching skill
-router.put("/teaching/:skillId", requireAuth, (req, res) => {
+router.put("/teaching/:skillId", requireAuth, async (req, res) => {
   const { skillId } = req.params;
   const {
     name,
@@ -208,11 +220,11 @@ router.put("/teaching/:skillId", requireAuth, (req, res) => {
   // Delete any uploaded proof files that were removed during this update
   if (Array.isArray(updates.proofs)) {
     const nextUrls = new Set(updates.proofs.map((p) => p.url));
-    previousProofs.forEach((oldProof) => {
-      if (oldProof?.url && !nextUrls.has(oldProof.url)) {
-        deleteStoredProofFile(oldProof.url);
-      }
-    });
+    await Promise.all(
+      previousProofs
+        .filter((oldProof) => oldProof?.url && !nextUrls.has(oldProof.url))
+        .map((oldProof) => deleteProofFromStorage(oldProof))
+    );
   }
 
   return res.json({
@@ -222,7 +234,7 @@ router.put("/teaching/:skillId", requireAuth, (req, res) => {
 });
 
 // DELETE /api/skills/teaching/:skillId — remove a teaching skill and all linked proof files
-router.delete("/teaching/:skillId", requireAuth, (req, res) => {
+router.delete("/teaching/:skillId", requireAuth, async (req, res) => {
   const existingSkill = req.user.teachingSkills.find(
     (sk) => sk.id === req.params.skillId
   );
@@ -238,7 +250,7 @@ router.delete("/teaching/:skillId", requireAuth, (req, res) => {
       : existingSkill.proof
       ? [existingSkill.proof]
       : [];
-    linkedProofs.forEach((p) => deleteStoredProofFile(p?.url));
+    await Promise.all(linkedProofs.map((p) => deleteProofFromStorage(p)));
   }
 
   return res.json({ student: sanitizeStudent(updated) });
